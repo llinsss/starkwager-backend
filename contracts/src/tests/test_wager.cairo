@@ -3,7 +3,7 @@ use starknet::{testing, contract_address_const, get_caller_address};
 
 use contracts::wager::wager::StrkWager;
 use contracts::wager::types::{Category, Mode};
-use contracts::wager::interface::{IStrkWagerDispatcher, IStrkWagerDispatcherTrait};
+use contracts::wager::interface::{IStrkWagerDispatcher, IStrkWagerDispatcherTrait, StrkWagerImpl};
 use contracts::escrow::interface::IEscrowDispatcherTrait;
 use contracts::tests::utils::{OWNER, ADMIN, ALICE, BOB, setup, create_wager};
 use openzeppelin::token::erc20::interface::IERC20DispatcherTrait;
@@ -22,8 +22,7 @@ fn test_set_escrow_address_fail() {
     let new_address = contract_address_const::<'new_address'>();
     start_cheat_caller_address(wager.contract_address, new_address);
     wager.set_escrow_address(new_address);
-    stop_cheat_caller_address(wager.contract_address);
-}
+        stop_cheat_caller_address(wager.contract_address);
 
 #[test]
 fn test_set_escrow_address() {
@@ -485,4 +484,64 @@ fn test_join_wager_head_to_head_full() {
     wager.fund_wallet(stake);
     wager.join_wager(wager_id); // Should panic here
     stop_cheat_caller_address(wager.contract_address);
+}
+#[test]
+    fn test_is_wager_participant_true() {
+        // Setup
+        let mut storage = Storage::default();
+        let wager_id = 1;
+        let caller = ContractAddress::from_felt(123);
+        let participant_id = 1;
+
+        storage.wager_participants_count.entry(wager_id).write(1);
+        storage.wager_participants.entry(wager_id).entry(participant_id).write(caller);
+
+        let contract_state = ContractState { storage };
+
+        // Use temporary variables to avoid complex formatting
+        let contract_state_ref = &contract_state;
+        let is_participant = StrkWagerImpl::is_wager_participant(contract_state_ref, wager_id, caller);
+
+        // Assert
+        assert(is_participant, "Caller should be a participant");
+    }
+
+    #[test]
+    fn test_is_wager_participant_false() {
+        // Setup
+        let mut storage = Storage::default();
+        let wager_id = 1;
+        let caller = ContractAddress::from_felt(123);
+        let non_participant = ContractAddress::from_felt(456);
+        let participant_id = 1;
+
+        storage.wager_participants_count.entry(wager_id).write(1);
+        storage.wager_participants.entry(wager_id).entry(participant_id).write(caller);
+
+        let contract_state = ContractState { storage };
+
+        // Use temporary variables to avoid complex formatting
+        let contract_state_ref = &contract_state;
+        let is_participant = StrkWagerImpl::is_wager_participant(contract_state_ref, wager_id, non_participant);
+
+        // Assert
+        assert(!is_participant, "Caller should not be a participant");
+    }
+
+    #[test]
+    fn test_is_wager_participant_wager_not_exist() {
+        // Setup
+        let storage = Storage::default();
+        let wager_id = 1;
+        let caller = ContractAddress::from_felt(123);
+
+        let contract_state = ContractState { storage };
+
+        // Use temporary variables to avoid complex formatting
+        let contract_state_ref = &contract_state;
+        let is_participant = StrkWagerImpl::is_wager_participant(contract_state_ref, wager_id, caller);
+
+        // Assert
+        assert(!is_participant, "Caller should not be a participant as the wager does not exist");
+    }
 }

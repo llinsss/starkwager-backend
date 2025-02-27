@@ -125,6 +125,25 @@ pub mod StrkWager {
             escrow_dispatcher.get_balance(address)
         }
 
+        fn is_wager_participant(
+            self: @ContractState, wager_id: u64, caller: ContractAddress
+        ) -> bool {
+            let participant_count = self.wager_participants_count.entry(wager_id).read();
+            let mut i = 1;
+            let mut is_participant = false;
+
+            while i <= participant_count {
+                let participant = self.wager_participants.entry(wager_id).entry(i).read();
+                if participant == caller {
+                    is_participant = true;
+                    break;
+                }
+                i += 1;
+            };
+
+            is_participant
+        }
+
         fn create_wager(
             ref self: ContractState,
             category: Category,
@@ -236,22 +255,7 @@ pub mod StrkWager {
             if in_app_balance >= stake {
                 return true;
             }
-
-            // Evaluating external wallet balance
-            let strk_dispatcher = IERC20Dispatcher { contract_address: self.strk_address.read() };
-            let external_balance = strk_dispatcher.balance_of(caller);
-            if external_balance >= stake {
-                return true;
-            }
-
-            false
+            return false;
         }
-        //TODO
-        fn _check_balance(self: @ContractState) -> bool {
-            true
-        }
-
-        //TODO
-        fn _fund_wager(self: @ContractState, wager_id: u64, amount: u256) {}
     }
 }
